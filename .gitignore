@@ -116,3 +116,5 @@ pytest-of-*/
 
 # GFPGAN/facexlib download face-detection weights to ./gfpgan/weights at runtime
 gfpgan/
+
+secrets/
