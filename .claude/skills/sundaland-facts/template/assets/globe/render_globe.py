@@ -20,20 +20,24 @@ shutil.rmtree(OUT_FRAMES, ignore_errors=True); OUT_FRAMES.mkdir()
 
 tex = np.asarray(Image.open(HERE / "earth_8k.jpg").convert("RGB")).astype(np.float32)
 TH, TW = tex.shape[:2]
+# note: the straight N–S line in the Indian Ocean is the real Ninetyeast Ridge in the bathymetry shading, not a seam
 cl = np.asarray(Image.open(HERE / "clouds.jpg").convert("L").resize((TW // 2, TH // 2), Image.BILINEAR)).astype(np.float32) / 255.0
 CH, CW = cl.shape
 
 P = json.load(open(PROJ / "assets/brand/proj.json"))
 lon0, lat1, k, sx = P["lon0"], P["lat1"], P["k"], P["sx"]
-END_CX, END_CY, END_VH = 500 - 560, 940, 1980
-end_lon = lon0 + END_CX / (k * sx)
-end_lat = lat1 - END_CY / sx
-R_END = (1080 / END_VH) * sx * 180 / math.pi
+# per-project config: globe_cfg.json  {in: {end_lon, end_lat, end_vh_deg, outline}, out: {...same, center:[lon,lat], route:[[lon,lat],...]}}
+CFG = json.load(open(HERE / "globe_cfg.json", encoding="utf-8"))[MODE]
+end_lon, end_lat = CFG["end_lon"], CFG["end_lat"]
+R_END = (1080 / (CFG["end_vh_deg"] * sx)) * sx * 180 / math.pi
+OUT_C = CFG.get("center", [102, 14])
 
-g = json.load(open(PROJ / "assets/brand/THA_adm0.geojson"))["features"][0]["geometry"]
-polys = g["coordinates"] if g["type"] == "MultiPolygon" else [g["coordinates"]]
-rings = [np.array(p[0])[:: max(1, len(p[0]) // 900)] for p in polys if len(p[0]) > 60]
-ROUTE = np.array([[56, 25.5], [58.5, 23.5], [62, 20], [70, 14], [78, 7.5], [88, 6.2], [95.5, 6.3], [98.4, 4.8], [100.8, 2.9], [103.7, 1.3], [105.2, 3.0], [108.5, 7.8], [113, 14], [118, 20], [122.5, 26], [128, 31], [135, 33.5], [139.7, 35.3]])
+rings = []
+for iso in CFG.get("outline", []):
+    g = json.load(open(PROJ / f"assets/brand/{iso}_adm0.geojson", encoding="utf-8"))["features"][0]["geometry"]
+    polys = g["coordinates"] if g["type"] == "MultiPolygon" else [g["coordinates"]]
+    rings += [np.array(p[0])[:: max(1, len(p[0]) // 900)] for p in polys if len(p[0]) > 20]
+ROUTE = np.array(CFG.get("route", [[0, 0], [0, 0.01]]), dtype=float)
 
 def ease_io(t): return 4 * t ** 3 if t < 0.5 else 1 - (-2 * t + 2) ** 3 / 2
 def clamp01(x): return min(max(x, 0.0), 1.0)
@@ -57,12 +61,12 @@ def frame_params(i):
     if i < po:
         z_t = ease_io(i / (po - 1))
         R = R_END * (470 / R_END) ** z_t
-        lam = end_lon + (102 - end_lon) * z_t; phi = end_lat + (14 - end_lat) * z_t
+        lam = end_lon + (OUT_C[0] - end_lon) * z_t; phi = end_lat + (OUT_C[1] - end_lat) * z_t
         cloud_a = 0.85 * clamp01((z_t - 0.35) / 0.5)
     else:
         h = (i - po) / max(N - po, 1)
-        R = 470 - 25 * h; lam = 102 - 14 * h; phi = 14 + 2 * h; cloud_a = 0.85
-    route_p = clamp01((i - 10) / 70)
+        R = 470 - 25 * h; lam = OUT_C[0] - 14 * h; phi = OUT_C[1] + 2 * h; cloud_a = 0.85
+    route_p = clamp01((i - 10) / 70) if len(ROUTE) > 2 else 0.0
     return R, lam, phi, cloud_a, 1.0 - clamp01((i - 30) / 40) * 0.4, route_p, i * 0.08
 
 def project(lo, la, lam0, phi0, R):

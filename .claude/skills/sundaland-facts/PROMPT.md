@@ -12,7 +12,7 @@
 
 ```
 ทำคลิปให้ช่อง The Sundaland หัวข้อ "20 Facts About <ประเทศ> That Sound Fake (But Aren't)"
-ใช้ format เดียวกับโปรเจกต์ projects/thailand-sounds-fake ทุกอย่าง (อ่าน .claude/skills/sundaland-facts/SKILL.md ก่อน)
+ใช้ format ของช่องตาม .claude/skills/sundaland-facts/FORMAT.md และโค้ดใน template/ (อ่าน SKILL.md ก่อน)
 
 - คลิปยาว 16:9 ยาว 8–10 นาที บรรยายภาษาอังกฤษ ตอบผมเป็นภาษาไทย
 - แนวช่อง: การค้า ภูมิศาสตร์ เศรษฐกิจ ห้ามข้อพิพาทที่ยังไม่จบและการเมืองภายใน

@@ -1,6 +1,7 @@
 import React from "react";
 import { AbsoluteFill, Easing, Img, OffthreadVideo, interpolate, random, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
-import { PROJ, COUNTRIES } from "./mapData";
+import { PROJ, COUNTRIES, FLAGS } from "./mapData";
+import { KpiCard } from "./hud";
 import { C, SERIF, SANS, MONO, s, clamp, Cam, camScale, toScreen, DriftVideo, Rise, Credit } from "./parts";
 
 export const ll = (lon: number, lat: number): [number, number] => [(lon - PROJ.lon0) * PROJ.k * PROJ.sx, (PROJ.lat1 - lat) * PROJ.sx];
@@ -66,12 +67,50 @@ export const Box: React.FC<{ size?: number; color?: string }> = ({ size = 34, co
   </svg>
 );
 
+
+export const Bill: React.FC<{ size?: number }> = ({ size = 64 }) => (
+  <svg width={size} height={size * 0.5} viewBox="-32 -16 64 32" style={{ overflow: "visible" }}>
+    <rect x={-30} y={-14} width={60} height={28} rx={3} fill="#7fae7a" stroke="#2f5b35" strokeWidth={1.5} />
+    <rect x={-25} y={-9} width={50} height={18} rx={2} fill="none" stroke="#2f5b35" strokeWidth={1} opacity={0.7} />
+    <circle cx={0} cy={0} r={7.5} fill="#d6e8cf" stroke="#2f5b35" strokeWidth={1} />
+    <text x={0} y={4} textAnchor="middle" fontSize={11} fontWeight={800} fill="#2f5b35" style={{ fontFamily: "sans-serif" }}>$</text>
+  </svg>
+);
+
+export const Crate: React.FC<{ size?: number }> = ({ size = 46 }) => (
+  <svg width={size} height={size} viewBox="-18 -18 36 36" style={{ overflow: "visible" }}>
+    <path d="M-14,-8 L4,-8 L13,-14 L-5,-14 Z" fill="#e3c27a" />
+    <path d="M4,-8 L13,-14 L13,6 L4,12 Z" fill="#a8803a" />
+    <rect x={-14} y={-8} width={18} height={20} fill="#d4a94f" stroke="#7a5a22" strokeWidth={1} />
+    <path d="M-14,-8 L4,12 M4,-8 L-14,12" stroke="#7a5a22" strokeWidth={1.2} />
+    <text x={-5} y={6} textAnchor="middle" fontSize={9} fontWeight={800} fill="#3a2a0e" style={{ fontFamily: "sans-serif" }}>$</text>
+  </svg>
+);
+
+export const Bolt: React.FC<{ size?: number }> = ({ size = 44 }) => (
+  <svg width={size} height={size} viewBox="-14 -18 28 36" style={{ overflow: "visible" }}>
+    <path d="M3,-17 L-10,3 L-1,3 L-4,17 L10,-4 L1,-4 Z" fill="#ffd34d" stroke="#8a5a00" strokeWidth={1.4} strokeLinejoin="round" style={{ filter: "drop-shadow(0 0 6px #ffd34d)" }} />
+  </svg>
+);
+
+export const Coin: React.FC<{ size?: number }> = ({ size = 40 }) => (
+  <svg width={size} height={size} viewBox="-16 -16 32 32" style={{ overflow: "visible" }}>
+    <circle r={13} fill="#E9A23B" stroke="#8a5a12" strokeWidth={2} />
+    <circle r={9} fill="none" stroke="#fff3c4" strokeWidth={1} opacity={0.7} />
+    <text y={4.5} textAnchor="middle" fontSize={13} fontWeight={800} fill="#6b4208" style={{ fontFamily: "sans-serif" }}>$</text>
+  </svg>
+);
+
 const ICON: Record<string, (t: number, i: number) => React.ReactNode> = {
   durian: (t, i) => <Durian size={68} spin={t * 4 + i * 40} />,
   fish: (t) => <Fish size={92} t={t} />,
   can: () => <Can size={58} />,
   pickup: () => <Pickup size={84} />,
   box: (_t, i) => <Box size={44} color={["#E5484D", "#3FB7B0", "#E9A23B"][i % 3]} />,
+  bill: (t, i) => <div style={{ transform: `rotate(${Math.sin(t * 0.2 + i) * 12}deg)` }}><Bill size={70} /></div>,
+  crate: () => <Crate size={52} />,
+  bolt: () => <Bolt size={46} />,
+  coin: () => <Coin size={42} />,
 };
 
 // ── Container ship, oblique 3D (tilted camera: deck plane foreshortened, height extruded screen-up) ──
@@ -159,6 +198,71 @@ export const routeGeom = (pts: [number, number][]) => {
 };
 export const routeProgress = (f: number, r: any) => interpolate(f, [s(r.at), s(r.at + r.dur)], [0, 1], { ...clamp, easing: Easing.inOut(Easing.sin) });
 
+
+/** Lane Xang–style EMU drawn flat-oblique, cars following the route (camera can follow like the ship). */
+export const Train2D: React.FC<{ g: ReturnType<typeof routeGeom>; p: number; cam: Cam; scale?: number }> = ({ g, p, cam, scale = 1 }) => {
+  const k = camScale(cam);
+  const carLen = 46 * scale, gap = 6 * scale;
+  const cars = Array.from({ length: 5 }).map((_, i) => {
+    const back = ((carLen + gap) * i) / (g.L * k);
+    const q = Math.max(0, p - back);
+    const a = g.at(q), b = g.at(Math.max(0, q - 0.004));
+    const A = toScreen(cam, a.x, a.y), B = toScreen(cam, b.x, b.y);
+    const ang = (Math.atan2(A.y - B.y, A.x - B.x) * 180) / Math.PI;
+    return { x: A.x, y: A.y, ang, front: i === 0 };
+  });
+  return (
+    <svg style={{ position: "absolute", inset: 0, width: 1920, height: 1080, overflow: "visible" }}>
+      {cars.reverse().map((c, i) => (
+        <g key={i} transform={`translate(${c.x} ${c.y}) rotate(${c.ang}) scale(${scale})`} style={{ filter: "drop-shadow(0 4px 4px rgba(0,0,0,.5))" }}>
+          <path d={c.front ? "M-23,-8 L14,-8 Q24,-8 26,0 Q24,8 14,8 L-23,8 Z" : "M-23,-8 L23,-8 L23,8 L-23,8 Z"} fill="#f4f6fa" stroke="#0B1530" strokeWidth={1.4} />
+          <rect x={-23} y={2.5} width={c.front ? 44 : 46} height={2.6} fill="#c8102e" />
+          <rect x={-23} y={-1} width={c.front ? 44 : 46} height={2.2} fill="#1f4fa8" />
+          {[-16, -6, 4, 14].map((x) => <rect key={x} x={x} y={-6} width={6} height={4} rx={1} fill="#2a3f66" />)}
+        </g>
+      ))}
+    </svg>
+  );
+};
+
+
+/** Lao–China EMU in the same oblique-3D language as Ship3D: stacked body slices (walls) on a tilted ground plane,
+ *  red/blue livery stripes on the side, lit roof with window band, soft shadow; cars follow the route geometry. */
+export const Train3D: React.FC<{ g: ReturnType<typeof routeGeom>; p: number; cam: Cam; scale?: number }> = ({ g, p, cam, scale: base = 1.3 }) => {
+  const k = camScale(cam);
+  const scale = base * Math.min(1, Math.max(0.36, k / (1080 / (1.7 * PROJ.sx)))); // shrink with the camera when it pulls out
+  const CAR = 50, GAP = 5, BODY_H = 11;
+  const cars = Array.from({ length: 5 }).map((_, i) => {
+    const back = ((CAR + GAP) * scale * i) / (g.L * k);
+    const q = p - back;
+    if (q < 0) return null;                       // car hasn't entered the line yet — don't pile it at the start
+    const a = g.at(q), b = g.at(Math.max(0, q - 0.003)), c2 = g.at(Math.min(1, q + 0.003));
+    const A = toScreen(cam, a.x, a.y), B = toScreen(cam, b.x, b.y), Cn = toScreen(cam, c2.x, c2.y);
+    const dx = Cn.x - B.x, dy = Cn.y - B.y;      // heading from neighbours on both sides (never 0/0)
+    return { x: A.x, y: A.y, deg: (Math.atan2(dy, dx) * 180) / Math.PI, front: i === 0 };
+  }).filter(Boolean) as { x: number; y: number; deg: number; front: boolean }[];
+  const at = (c: { x: number; y: number; deg: number }, z: number) => `translate(${c.x} ${c.y - z * scale}) scale(${scale} ${scale * TILT}) rotate(${c.deg})`;
+  const body = (front: boolean) => front ? "M-25,-6.5 L12,-6.5 C20,-6.5 25,-3 27,0 C25,3 20,6.5 12,6.5 L-25,6.5 Z" : "M-25,-6.5 L25,-6.5 L25,6.5 L-25,6.5 Z";
+  const sliceCol = (z: number) => z < 1.5 ? "#1b2c4c" : z >= 3 && z < 4.5 ? "#c8102e" : z >= 5 && z < 6.5 ? "#1f4fa8" : "#dfe5ee";
+  const ordered = [...cars].reverse();
+  return (
+    <svg style={{ position: "absolute", inset: 0, width: 1920, height: 1080, overflow: "visible" }}>
+      <defs><filter id="trsh" x="-50%" y="-80%" width="200%" height="260%"><feGaussianBlur stdDeviation="3" /></filter></defs>
+      {ordered.map((c, i) => <g key={`s${i}`} transform={`translate(${10 * scale} ${8 * scale})`}><g transform={at(c, 0)}><path d={body(c.front)} fill="rgba(0,0,0,0.5)" filter="url(#trsh)" /></g></g>)}
+      {ordered.map((c, i) => (
+        <g key={i}>
+          {Array.from({ length: BODY_H * 2 }).map((_, j) => { const z = j / 2; return <g key={j} transform={at(c, z)}><path d={body(c.front)} fill={sliceCol(z)} /></g>; })}
+          <g transform={at(c, BODY_H)}>
+            <path d={body(c.front)} fill="#f4f6fa" stroke="#9aa6ba" strokeWidth={0.6} />
+            <rect x={-22} y={-3} width={c.front ? 30 : 44} height={6} rx={2} fill="#2a3f66" />
+            {c.front && <path d="M14,-4.5 C19,-4 22,-2 23.5,0 C22,2 19,4 14,4.5 Z" fill="#0f1a33" />}
+          </g>
+        </g>
+      ))}
+    </svg>
+  );
+};
+
 /** Route drawn in map units with optional 3D ship riding the head. */
 export const RouteFX: React.FC<{ cam: Cam; r: any }> = ({ cam, r }) => {
   const f = useCurrentFrame();
@@ -174,15 +278,22 @@ export const RouteFX: React.FC<{ cam: Cam; r: any }> = ({ cam, r }) => {
   const ang = Math.atan2(ahead.y - behind.y, ahead.x - behind.x);
   const col = r.color ?? "#F2A33A";
   const shipScale = r.shipScale ?? 1.5;
-  const sternGap = r.ship && p < 1 ? Math.min(p, ((SHIP_LEN * 0.5 + 150) * shipScale) / Ls) : 0;
+  const sternGap = (r.ship || r.train) && p < 1 ? Math.min(p, ((SHIP_LEN * 0.5 + 150) * shipScale) / Ls) : 0;
   const pl = Math.max(0, p - sternGap);
   return (
     <>
       <svg style={{ position: "absolute", inset: 0, width: 1920, height: 1080, overflow: "visible" }}>
         <path d={d} fill="none" stroke="rgba(0,0,0,0.45)" strokeWidth={6} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={Ls} strokeDashoffset={Ls * (1 - pl)} transform="translate(2 3)" opacity={0.6} />
         <path d={d} fill="none" stroke={col} strokeWidth={4.5} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={Ls} strokeDashoffset={Ls * (1 - pl)} opacity={0.9} />
+        {r.train && (() => { const tw = ((r.trainScale ?? 1.4) / 1.4) * Math.min(1, Math.max(0.36, k / (1080 / (1.7 * PROJ.sx)))); return <>
+          <path d={d} fill="none" stroke="#1a2236" strokeWidth={13 * tw} strokeLinecap="round" strokeLinejoin="round" opacity={0.85} />
+          <path d={d} fill="none" stroke="#8a93a6" strokeWidth={13 * tw} strokeDasharray={`${2.5 * tw} ${7 * tw}`} opacity={0.9} />
+          <path d={d} fill="none" stroke="#c9d1de" strokeWidth={10 * tw} strokeLinejoin="round" opacity={0.95} />
+          <path d={d} fill="none" stroke="#3a4560" strokeWidth={7 * tw} strokeLinejoin="round" />
+        </>; })()}
       </svg>
       {r.ship && <Ship3D x={H.x} y={H.y} ang={ang} t={f} scale={shipScale} />}
+      {r.train && <Train3D g={g} p={p} cam={cam} scale={r.trainScale ?? 1.4} />}
     </>
   );
 };
@@ -209,7 +320,9 @@ export const followCam = (f: number, fol: any, routes: any[], base: Cam): { cam:
 };
 
 // ── Country silhouette pop (Japan-style in the Malacca piece) ───────────────
-export const CountryPop: React.FC<{ cam: Cam; name: string; color: string; at: number; settle?: number; stroke?: string }> = ({ cam, name, color, at, settle = 0.85, stroke = "white" }) => {
+/** Country pop (Malacca/Japan style). Rule (user, 2026-11-13): a COUNTRY always pops as its FLAG; solid colour is only
+ *  for sub-national areas (provinces) or when `solid` is set (e.g. the unnamed mystery silhouette in the cold open). */
+export const CountryPop: React.FC<{ cam: Cam; name: string; color: string; at: number; settle?: number; stroke?: string; solid?: boolean }> = ({ cam, name, color, at, settle = 0.85, stroke = "white", solid = false }) => {
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
   const c = (COUNTRIES as any)[name];
@@ -218,11 +331,20 @@ export const CountryPop: React.FC<{ cam: Cam; name: string; color: string; at: n
   const pop = spring({ frame: f - at, fps, config: { damping: 11, stiffness: 140 } });
   const rest = interpolate(f, [at + 16, at + 34], [1, settle], clamp);
   const lift = 12 * pop;
+  const flag = !solid ? FLAGS[name] : undefined;
+  const id = `cpf-${name.replace(/\W/g, "")}-${at}`;
+  const [x0, y0, x1, y1] = c.bbox;
   return (
     <svg viewBox={`${cam.cx - vw / 2} ${cam.cy - vh / 2} ${vw} ${vh}`} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: Math.min(1, pop * 1.4),
       filter: `drop-shadow(0 ${lift}px ${10 + 10 * pop}px rgba(0,0,0,0.55))` }}>
+      {flag && <defs><clipPath id={id}>{c.paths.map((d: string, i: number) => <path key={i} d={d} />)}</clipPath></defs>}
       <g transform={`translate(${c.cx} ${c.cy}) scale(${0.8 + 0.2 * pop}) translate(${-c.cx} ${-c.cy - lift / k})`}>
-        {c.paths.map((d: string, i: number) => <path key={i} d={d} fill={color} fillOpacity={rest} stroke={stroke} strokeWidth={2.4 / k} strokeLinejoin="round" />)}
+        {flag ? (
+          <g opacity={Math.max(rest, 0.75)} clipPath={`url(#${id})`}>
+            <image href={staticFile(flag)} x={x0} y={y0} width={x1 - x0} height={y1 - y0} preserveAspectRatio="xMidYMid slice" />
+          </g>
+        ) : null}
+        {c.paths.map((d: string, i: number) => <path key={i} d={d} fill={flag ? "none" : color} fillOpacity={rest} stroke={stroke} strokeWidth={2.4 / k} strokeLinejoin="round" />)}
       </g>
     </svg>
   );
@@ -298,17 +420,9 @@ export const IconBurst: React.FC<{ cam: Cam; lon: number; lat: number; at: numbe
   );
 };
 
-export const CountUp: React.FC<{ at: number; dur: number; to: number; prefix?: string; suffix?: string; label: string; x?: number; y?: number; decimals?: number }> = ({ at, dur, to, prefix = "", suffix = "", label, x = 120, y = 150, decimals = 0 }) => {
-  const f = useCurrentFrame();
-  const v = interpolate(f, [at, at + dur], [0, to], { ...clamp, easing: Easing.out(Easing.cubic) });
-  const o = interpolate(f, [at - 6, at + 4], [0, 1], clamp);
-  return (
-    <div style={{ position: "absolute", left: x, top: y, opacity: o }}>
-      <div style={{ fontFamily: MONO, fontSize: 24, color: C.tealBright, letterSpacing: 3, textShadow: "0 2px 8px rgba(0,0,0,.8)" }}>{label}</div>
-      <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 130, color: C.amber, lineHeight: 1, textShadow: "0 6px 22px rgba(0,0,0,.6)" }}>{prefix}{v.toFixed(decimals)}{suffix}</div>
-    </div>
-  );
-};
+export const CountUp: React.FC<{ at: number; dur: number; to: number; prefix?: string; suffix?: string; label: string; x?: number; y?: number; decimals?: number }> = ({ at, dur, to, prefix = "", suffix = "", label, x = 120, y = 150, decimals = 0 }) => (
+  <KpiCard x={x} y={y} w={720} label={label} value={to} prefix={prefix} suffix={suffix} decimals={decimals} at={at} dur={dur} big={96} />
+);
 
 // ── Viz 1 · The sinking city (No. 13) ───────────────────────────────────────
 export const SinkingCity: React.FC<{ dur: number }> = ({ dur }) => {

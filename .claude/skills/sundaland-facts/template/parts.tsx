@@ -16,7 +16,9 @@ import { Audio } from "@remotion/media";
 import { loadFont as loadFraunces } from "@remotion/google-fonts/Fraunces";
 import { loadFont as loadManrope } from "@remotion/google-fonts/Manrope";
 import { loadFont as loadPlexMono } from "@remotion/google-fonts/IBMPlexMono";
-import { THAILAND, PROVINCES, BASE_LAYERS } from "./mapData";
+import { COUNTRIES, LAO_PROVINCES, BASE_LAYERS, FLAGS, PROJ } from "./mapData";
+import { CountryPop } from "./fx";
+import { KpiCard, Badge, H } from "./hud";
 
 // ── The Sundaland · Economy Geography — atelier composition (see art-direction.md) ──
 
@@ -145,82 +147,66 @@ export const Basemap: React.FC<{ cam: Cam; blur?: number }> = ({ cam, blur = 0 }
   );
 };
 
-/** Country silhouette filled with its flag, popping up off the satellite map. */
-export const FlagSilhouette: React.FC<{ cam: Cam; pop: number; fade: number }> = ({ cam, pop, fade }) => {
+/** Country silhouette filled with its flag, popping up off the satellite map (any country in COUNTRIES with a flag in FLAGS). */
+export const FlagSilhouette: React.FC<{ cam: Cam; country: string; pop: number; fade: number; boost?: number }> = ({ cam, country, pop, fade, boost = 1 }) => {
+  const c = COUNTRIES[country];
+  const flag = FLAGS[country];
+  if (!c || !flag) return null;
   const k = camScale(cam);
   const vw = 1920 / k, vh = 1080 / k;
-  const [ox, oy] = [500, 919]; // country centroid in map units
-  const sc = 0.82 + 0.18 * pop;
-  const lift = (1 - fade) * 0 + 10 * pop;
-  const stripes = [["#A51931", 1], ["#F4F5F8", 1], ["#2D2A4A", 2], ["#F4F5F8", 1], ["#A51931", 1]] as const;
-  let y = 0;
+  const [x0, y0, x1, y1] = c.bbox;
+  const sc = (0.82 + 0.18 * pop) * boost;
+  const lift = 10 * pop;
+  const id = `flag-${country.replace(/\W/g, "")}`;
   return (
     <svg viewBox={`${cam.cx - vw / 2} ${cam.cy - vh / 2} ${vw} ${vh}`}
       style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: Math.min(pop * 1.4, 1) * fade,
         filter: `drop-shadow(0 ${lift}px ${14 + 8 * pop}px rgba(0,0,0,0.55))` }}>
-      <defs>
-        <clipPath id="tha-clip">{THAILAND.paths.map((d, i) => <path key={i} d={d} />)}</clipPath>
-      </defs>
-      <g transform={`translate(${ox} ${oy}) scale(${sc}) translate(${-ox} ${-oy - lift / k})`}>
-        <g clipPath="url(#tha-clip)">
-          {stripes.map(([col, h], i) => {
-            const r = <rect key={i} x={-50} y={(y / 6) * 1838} width={1100} height={(h / 6) * 1838 + 1} fill={col} />;
-            y += h;
-            return r;
-          })}
+      <defs><clipPath id={id}>{c.paths.map((d, i) => <path key={i} d={d} />)}</clipPath></defs>
+      <g transform={`translate(${c.cx} ${c.cy}) scale(${sc}) translate(${-c.cx} ${-c.cy - lift / k})`}>
+        <g clipPath={`url(#${id})`}>
+          <image href={staticFile(flag)} x={x0} y={y0} width={x1 - x0} height={y1 - y0} preserveAspectRatio="xMidYMid slice" />
         </g>
-        {THAILAND.paths.map((d, i) => <path key={i} d={d} fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth={2.2 / k} />)}
+        {c.paths.map((d, i) => <path key={i} d={d} fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth={2.2 / (k * sc)} />)}
       </g>
     </svg>
   );
 };
 
-/** Thailand's territory after the flag dissolves: tinted fill + white border, so the thin strip reads on satellite. */
-export const TerritoryTint: React.FC<{ cam: Cam; o: number }> = ({ cam, o }) => {
+/** A country's territory after the flag dissolves: tinted fill + white border, so it reads on satellite. */
+export const TerritoryTint: React.FC<{ cam: Cam; country: string; o: number; fill?: string }> = ({ cam, country, o, fill = "rgba(233,162,59,0.30)" }) => {
+  const c = COUNTRIES[country];
+  if (!c) return null;
   const k = camScale(cam);
   const vw = 1920 / k, vh = 1080 / k;
   return (
     <svg viewBox={`${cam.cx - vw / 2} ${cam.cy - vh / 2} ${vw} ${vh}`} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: o }}>
-      {THAILAND.paths.map((d, i) => (
-        <path key={i} d={d} fill="rgba(233,162,59,0.30)" stroke="white" strokeWidth={2.4 / k} strokeLinejoin="round"
-          style={{ filter: "drop-shadow(0 0 3px rgba(0,0,0,.6))" }} />
+      {c.paths.map((d, i) => (
+        <path key={i} d={d} fill={fill} stroke="white" strokeWidth={2.4 / k} strokeLinejoin="round" style={{ filter: "drop-shadow(0 0 3px rgba(0,0,0,.6))" }} />
       ))}
     </svg>
   );
 };
 
-/** Faint province borders (geoBoundaries ADM1) inside the country. */
+/** Faint province borders (geoBoundaries ADM1, Laos) inside the country. */
 export const ProvinceBorders: React.FC<{ cam: Cam; o: number }> = ({ cam, o }) => {
   const k = camScale(cam);
   const vw = 1920 / k, vh = 1080 / k;
   return (
     <svg viewBox={`${cam.cx - vw / 2} ${cam.cy - vh / 2} ${vw} ${vh}`} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: o }}>
-      {PROVINCES.all.map((d, i) => <path key={i} d={d} fill="none" stroke="rgba(255,255,255,0.38)" strokeWidth={1.3 / k} strokeLinejoin="round" />)}
+      {Object.values(LAO_PROVINCES).flatMap((pv, j) => pv.paths.map((d, i) => <path key={`${j}-${i}`} d={d} fill="none" stroke="rgba(255,255,255,0.38)" strokeWidth={1.3 / k} strokeLinejoin="round" />))}
     </svg>
   );
 };
 
-/** A province that pops up off the map like the country silhouette — solid colour, white edge, lifted shadow. */
-export const ProvincePop: React.FC<{ cam: Cam; name: keyof typeof PROVINCES.named; color: string; at: number; settle?: number }> = ({ cam, name, color, at, settle = 0.55 }) => {
-  const f = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  const pv = PROVINCES.named[name];
+/** National borders of the region drawn thin, so countries read on the satellite at wide zooms. */
+export const RegionBorders: React.FC<{ cam: Cam; o: number; names?: string[] }> = ({ cam, o, names }) => {
   const k = camScale(cam);
   const vw = 1920 / k, vh = 1080 / k;
-  const pop = spring({ frame: f - at, fps, config: { damping: 10, stiffness: 150 } });
-  const rest = interpolate(f, [at + 14, at + 30], [1, settle], clamp);
-  const sc = 0.7 + 0.3 * pop;
-  const lift = 8 * pop * rest;
-  if (f < at) return null;
+  const list = names ?? ["Singapore", "Brunei", "Cambodia", "Philippines", "Thailand", "Malaysia", "Indonesia", "Timor-Leste", "Laos", "Vietnam", "Myanmar"];
   return (
-    <svg viewBox={`${cam.cx - vw / 2} ${cam.cy - vh / 2} ${vw} ${vh}`}
-      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: Math.min(pop * 1.5, 1),
-        filter: `drop-shadow(0 ${lift}px ${6 + 10 * pop}px rgba(0,0,0,${0.35 + 0.25 * rest}))` }}>
-      <g transform={`translate(${pv.cx} ${pv.cy}) scale(${sc}) translate(${-pv.cx} ${-pv.cy - lift / k})`}>
-        {pv.paths.map((d, i) => (
-          <path key={i} d={d} fill={color} fillOpacity={0.35 + 0.55 * rest} stroke="white" strokeWidth={2.6 / k} strokeLinejoin="round" />
-        ))}
-      </g>
+    <svg viewBox={`${cam.cx - vw / 2} ${cam.cy - vh / 2} ${vw} ${vh}`} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: o }}>
+      {list.flatMap((n) => (COUNTRIES[n]?.paths ?? []).map((d, i) => <path key={`${n}-${i}`} d={d} fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth={1.4 / k} strokeLinejoin="round" />))}
     </svg>
   );
 };
@@ -287,74 +273,71 @@ export const DashLine: React.FC<{ a: { x: number; y: number }; b: { x: number; y
   );
 };
 
-// ── Scene A · Cold open: footage → whip into a spinning globe → zoom into Thailand → flat map → flag pop → neck → tick ──
-// hook word times (global): Thailand 1.35 · narrow 2.17 · cycle across 3.25 · entire country 4.09 · before lunch 4.89
-// globe_in.mp4 (48 f, rendered by assets/globe/render_globe.py) ends exactly on the flat map's first camera.
+// ── Scene A · Cold open: Singapore footage → whip into the cloudy globe → zoom to Singapore → flag pop + AAA stamps
+//    → whip north: a dark mystery silhouette (Laos, unnamed) pops, dashed line ticks white, "≈ ½ the debt".
+// globe_in.mp4 (48 f, assets/globe/render_globe.py with globe_cfg.json "in") ends on the flat map's first camera (Singapore, 14° tall).
+// t = scene-local seconds for: [sentence-2 start ("And all three…"), sentence-3 start ("The Southeast Asian country…"), "half as much" ≈ end]
 const GLOBE_AT = s(0.95), GLOBE_LEN = 48;
-export const ColdOpen: React.FC<{ dur: number }> = ({ dur }) => {
+const llp = (lon: number, lat: number): [number, number] => [(lon - PROJ.lon0) * PROJ.k * PROJ.sx, (PROJ.lat1 - lat) * PROJ.sx];
+export const ColdOpen: React.FC<{ dur: number; p?: any }> = ({ dur, p = {} }) => {
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const [nx, ny] = [(THAILAND.narrow.a[0] + THAILAND.narrow.b[0]) / 2, THAILAND.narrow.a[1]];
+  const [t2, t3, tEnd] = (p.t ?? [5.2, 8.6, 11.6]) as number[];
+  const SG = llp(103.82, 1.35), LA = [COUNTRIES["Laos"].cx, COUNTRIES["Laos"].cy];
+  const mid = [SG[0] * 0.4 + LA[0] * 0.6 + 60, SG[1] * 0.4 + LA[1] * 0.6];
   const cam = useCam([
-    [s(2.45), 500 - 560, 940, 1980],
-    [s(3.1), 500 - 560, 945, 1920],
-    [s(4.0), nx - 70, ny, 215],
-    [dur, nx - 64, ny, 196],
+    [s(2.45), SG[0], SG[1], 14 * PROJ.sx],
+    [s(3.3), SG[0] - 20, SG[1] - 10, 5.2 * PROJ.sx],
+    [s(t3), SG[0] - 20, SG[1] - 10, 4.8 * PROJ.sx],
+    [s(t3 + 0.9), mid[0], mid[1], 22 * PROJ.sx],
+    [dur, mid[0], mid[1], 21 * PROJ.sx],
   ]);
-  // footage → globe whip
   const whip = interpolate(f, [s(0.9), s(1.15)], [0, 1], { ...clamp, easing: Easing.in(Easing.quad) });
   const footO = interpolate(f, [s(0.9), s(1.12)], [1, 0], clamp);
   const globeIn = interpolate(f, [GLOBE_AT, GLOBE_AT + 5], [0, 1], clamp);
   const globeBlurIn = interpolate(f, [GLOBE_AT, GLOBE_AT + 8], [14, 0], clamp);
-  // globe → flat map handoff
   const globeOut = interpolate(f, [s(2.35), s(2.55)], [1, 0], clamp);
-  const zoomBlur = interpolate(f, [s(3.1), s(3.55), s(4.0)], [0, 6, 0], clamp);
-  const mapBlur = interpolate(f, [s(2.35), s(2.6)], [6, 0], clamp) + zoomBlur;
-  const pop = spring({ frame: f - s(2.55), fps, config: { damping: 11, stiffness: 140 } });
-  const flagFade = interpolate(f, [s(3.1), s(3.7)], [1, 0], clamp);
-  const tint = interpolate(f, [s(3.25), s(3.8)], [0, 1], clamp);
+  const whipN = interpolate(f, [s(t3), s(t3 + 0.45), s(t3 + 0.9)], [0, 9, 0], clamp);
+  const mapBlur = interpolate(f, [s(2.35), s(2.6)], [6, 0], clamp) + interpolate(f, [s(2.6), s(3.0), s(3.3)], [0, 4, 0], clamp) + whipN;
+  const pop = spring({ frame: f - s(3.0), fps, config: { damping: 11, stiffness: 140 } });
+  const flagFade = interpolate(f, [s(t3 + 0.6), s(t3 + 1.0)], [1, 0.0], clamp);
+  const tint = interpolate(f, [s(t3 + 0.5), s(t3 + 1.0)], [0, 1], clamp);
+  const statO = interpolate(f, [s(t3 - 0.1), s(t3 + 0.3)], [1, 0], clamp);
   const out = interpolate(f, [dur - 8, dur], [1, 0], clamp);
-  const A = toScreen(cam, THAILAND.narrow.a[0], ny), B = toScreen(cam, THAILAND.narrow.b[0], ny);
-  const ext = 26;
-  const pa = { x: A.x - ext, y: A.y }, pb = { x: B.x + ext, y: B.y };
-  const mid = { x: (A.x + B.x) / 2, y: A.y };
+  const S = toScreen(cam, SG[0], SG[1]), L = toScreen(cam, LA[0], LA[1]);
+  const stamps = ["S&P", "MOODY'S", "FITCH"];
   return (
     <AbsoluteFill style={{ opacity: out }}>
       <Basemap cam={cam} blur={mapBlur} />
-      <TerritoryTint cam={cam} o={tint} />
-      <ProvinceBorders cam={cam} o={tint} />
-      <ProvincePop cam={cam} name="Prachuap Khiri Khan" color={C.tealBright} at={s(3.85)} settle={0.45} />
-      <FlagSilhouette cam={cam} pop={pop} fade={flagFade} />
-      <MapLabel cam={cam} ux={500} uy={700} text="Thailand" at={s(2.65)} size={40} />
-      <MapLabel cam={cam} ux={225} uy={1060} text="Myanmar" at={s(3.65)} />
-      <MapLabel cam={cam} ux={292} uy={1010} text="Thailand" at={s(3.7)} size={26} />
-      <MapLabel cam={cam} ux={350} uy={1150} text="Gulf of Thailand" at={s(3.75)} />
-      <MapLabel cam={cam} ux={95} uy={1180} text="Andaman Sea" at={s(3.85)} />
-      <DashLine a={pa} b={pb} drawAt={s(4.1)} tickAt={s(4.6)} />
-      <PinTick x={mid.x} y={mid.y} at={s(4.6)} dot={false} />
-      <MapLabel cam={cam} ux={296} uy={1071} text="Prachuap Khiri Khan" dx={150} dy={-120} at={s(4.75)} leader size={28} />
+      <RegionBorders cam={cam} o={interpolate(f, [s(2.6), s(3.2)], [0, 0.8], clamp)} />
+      <TerritoryTint cam={cam} country="Singapore" o={tint} />
+      <FlagSilhouette cam={cam} country="Singapore" pop={pop} fade={flagFade} boost={1.6} />
+      <MapLabel cam={cam} ux={SG[0]} uy={SG[1]} text="Singapore" dx={150} dy={-90} at={s(3.25)} leader size={36} />
+      {/* the mystery borrower: Laos, unnamed until the finale */}
+      <CountryPop cam={cam} name="Laos" color="#0B1530" at={s(t3 + 1.0)} settle={0.92} solid />
+      {f >= s(t3 + 1.15) && (
+        <div style={{ position: "absolute", left: L.x, top: L.y, transform: `translate(-50%,-50%) scale(${spring({ frame: f - s(t3 + 1.15), fps, config: { damping: 9, stiffness: 160 } })})`,
+          fontFamily: SERIF, fontWeight: 600, fontSize: 130, color: C.amber, textShadow: "0 4px 18px rgba(0,0,0,.6)" }}>?</div>
+      )}
+      <DashLine a={S} b={L} drawAt={s(t3 + 1.3)} tickAt={s(t3 + 1.9)} />
+      <PinTick x={L.x} y={L.y + 70} at={s(t3 + 1.9)} dot={false} />
       <LeftWash strength={0.72} />
-      <div style={{ position: "absolute", left: 120, top: 360, width: 980 }}>
-        <Rise delay={s(4.85)}>
-          <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 150, color: C.amber, lineHeight: 1, whiteSpace: "nowrap", textShadow: "0 4px 18px rgba(0,0,0,.5)" }}>≈ 11–12 km</div>
-        </Rise>
-        <Rise delay={s(5.15)}>
-          <div style={{ fontFamily: SANS, fontWeight: 500, fontSize: 40, color: C.paper, marginTop: 18, textShadow: "0 2px 10px rgba(0,0,0,.6)" }}>
-            from the Gulf of Thailand to the Myanmar border
-          </div>
-        </Rise>
+      <div style={{ position: "absolute", inset: 0, opacity: statO }}>
+        <KpiCard x={120} y={230} w={800} label="Singapore · government debt" value={170} prefix="≈" suffix="%" sub="of GDP — more than Italy or the United States" at={s(3.6)} big={110} />
+        {stamps.map((st, i) => <Badge key={st} x={230 + i * 240} y={760} text="AAA" sub={st} at={s(t2 + 0.9 + i * 0.35)} color={H.amber} size={56} />)}
       </div>
-      {/* spinning globe that zooms into Thailand */}
+      <div style={{ position: "absolute", inset: 0, opacity: 1 - statO }}>
+        <KpiCard x={120} y={330} w={720} label="First in line to go broke" text="≈ ½" sub="the debt ratio" at={s(tEnd - 1.4)} color={H.amber} big={120} />
+      </div>
       <Sequence from={GLOBE_AT} durationInFrames={GLOBE_LEN} premountFor={30}>
         <AbsoluteFill style={{ opacity: globeIn * globeOut, filter: globeBlurIn > 0.2 ? `blur(${globeBlurIn}px)` : undefined }}>
           <OffthreadVideo src={staticFile("globe_in.mp4")} muted style={{ width: "100%", height: "100%" }} />
         </AbsoluteFill>
       </Sequence>
-      {/* opening footage, whipped away */}
       <AbsoluteFill style={{ opacity: footO, filter: `blur(${whip * 18}px)`, transform: `scale(${1 + whip * 0.3})` }}>
-        <DriftVideo src="sample/coast_karst.mp4" dur={s(1.2)} />
+        <DriftVideo src="footage/s00_sg.mp4" dur={s(1.2)} />
       </AbsoluteFill>
-      <Credit text="Globe & basemap: NASA Blue Marble (public domain) · Boundaries: geoBoundaries (CC BY 4.0) · Footage: Wowa84 / Pixabay" />
+      <Credit text={p.credit ?? "Globe & basemap: NASA Blue Marble (public domain) · Boundaries: geoBoundaries (CC BY 4.0)"} />
     </AbsoluteFill>
   );
 };
@@ -401,7 +384,7 @@ export const FactTitle: React.FC<{ dur: number; n: number; title: string; act: s
         <div style={{ width: 3, height: 360 * rule, background: `linear-gradient(180deg, ${C.teal}, ${C.navy})` }} />
         <div>
           <Rise delay={s(0.5)}>
-            <div style={{ fontFamily: MONO, fontSize: 24, color: C.tealBright, letterSpacing: 3 }}>NO. {String(n).padStart(2, "0")} / 20 · {act}</div>
+            <div style={{ fontFamily: MONO, fontSize: 24, color: C.tealBright, letterSpacing: 3 }}>NO. {String(n).padStart(2, "0")} / 15 · {act}</div>
           </Rise>
           <Rise delay={s(0.7)}>
             <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 92, color: C.paper, lineHeight: 1.04, width: 900, marginTop: 18 }}>{title}</div>
@@ -409,90 +392,6 @@ export const FactTitle: React.FC<{ dur: number; n: number; title: string; act: s
         </div>
       </div>
       <Credit text={credit} />
-    </AbsoluteFill>
-  );
-};
-
-// ── Scene D1 · Ledger reveal over the spinning drive ─────────────────────────
-// body narration timing (from word timestamps, scene-local): "a quarter" 3.1s, "40%" 3.6s, "hard drives" 5.0s
-export const DriveShare: React.FC<{ dur: number }> = ({ dur }) => {
-  const f = useCurrentFrame();
-  const dash = interpolate(f, [s(3.55), s(3.85)], [0, 1], clamp);
-  const out = interpolate(f, [dur - 6, dur], [1, 0], clamp);
-  return (
-    <AbsoluteFill style={{ opacity: out }}>
-      <DriftVideo src="sample/hdd_spin.mp4" dur={dur} from={1.08} to={1.16} origin="62% 50%" />
-      <LeftWash strength={0.9} />
-      <div style={{ position: "absolute", left: 120, top: 300 }}>
-        <Rise delay={s(1.2)}>
-          <div style={{ fontFamily: MONO, fontSize: 24, color: C.tealBright, letterSpacing: 3 }}>THAILAND · 2011</div>
-        </Rise>
-        <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 200, color: C.amber, lineHeight: 1, marginTop: 14, display: "flex" }}>
-          <Count to={25} startFrame={s(3.0)} dur={14} />
-          <span style={{ opacity: dash, transform: `translateX(${(1 - dash) * -20}px)` }}>–40%</span>
-        </div>
-        <Rise delay={s(4.4)}>
-          <div style={{ fontFamily: SANS, fontWeight: 500, fontSize: 44, color: C.paper, width: 760, lineHeight: 1.25, marginTop: 10 }}>
-            of the world's hard drives were built here
-          </div>
-        </Rise>
-      </div>
-      <Credit text="Sources: IDC · IHS iSuppli · AP (2011)   ·   Footage: MarandaP / Pixabay" />
-    </AbsoluteFill>
-  );
-};
-
-// ── Scene D2 · Pin tick on Ayutthaya → whip into the satellite → before/after wipe ──
-// body word times (global, +0.6 s globe shift): When 19.18 · factories 19.54 · went under water 20.0–21.0 · prices jumped 21.16
-export const FloodWipe: React.FC<{ dur: number }> = ({ dur }) => {
-  const f = useCurrentFrame();
-  const AY = THAILAND.ayutthaya;
-  const cam = useCam([[0, AY[0] - 60, AY[1] + 40, 620], [s(1.5), AY[0] - 30, AY[1] + 28, 300]]);
-  const pin = toScreen(cam, AY[0], AY[1]);
-  const prov = interpolate(f, [0, s(0.3)], [0, 1], clamp);
-  const whip = interpolate(f, [s(1.35), s(1.6)], [0, 1], { ...clamp, easing: Easing.in(Easing.quad) });
-  const satIn = interpolate(f, [s(1.4), s(1.65)], [0, 1], clamp);
-  const satBlur = interpolate(f, [s(1.4), s(1.75)], [16, 0], clamp);
-  const satScale = interpolate(f, [s(1.4), s(1.75)], [1.18, 1], { ...clamp, easing: Easing.out(Easing.cubic) });
-  const wipe = interpolate(f, [s(1.65), s(2.6)], [0, 100], { ...clamp, easing: Easing.inOut(Easing.cubic) });
-  const out = interpolate(f, [dur - 18, dur], [1, 0], clamp);
-  const labelBefore = interpolate(wipe, [0, 40], [1, 0], clamp);
-  const labelAfter = interpolate(wipe, [60, 100], [0, 1], clamp);
-  return (
-    <AbsoluteFill style={{ opacity: out, background: C.ink }}>
-      {/* map beat: provinces → Ayutthaya province pops → pin ticks */}
-      <AbsoluteFill style={{ opacity: 1 - satIn, filter: `blur(${whip * 16}px)`, transform: `scale(${1 + whip * 0.25})`, transformOrigin: `${pin.x}px ${pin.y}px` }}>
-        <Basemap cam={cam} />
-        <ProvinceBorders cam={cam} o={prov} />
-        <ProvincePop cam={cam} name="Bangkok" color={C.tealBright} at={s(0.25)} settle={0.35} />
-        <ProvincePop cam={cam} name="Phra Nakhon Si Ayutthaya" color={C.amber} at={s(0.1)} settle={0.5} />
-        <MapLabel cam={cam} ux={PROVINCES.named["Bangkok"].cx} uy={PROVINCES.named["Bangkok"].cy} text="Bangkok" dy={70} at={s(0.35)} size={26} />
-        <MapLabel cam={cam} ux={AY[0]} uy={AY[1]} text="Ayutthaya" dx={-210} dy={-110} at={s(0.75)} leader />
-        <PinTick x={pin.x} y={pin.y} at={s(0.7)} color="#E5484D" />
-      </AbsoluteFill>
-      {/* satellite before/after */}
-      <AbsoluteFill style={{ opacity: satIn, filter: satBlur > 0.2 ? `blur(${satBlur}px)` : undefined, transform: `scale(${satScale})` }}>
-        <DriftPhoto src="sample/sat_before.jpg" dur={dur} from={1.0} to={1.06} origin="55% 45%" />
-        <DriftPhoto src="sample/sat_after.jpg" dur={dur} from={1.0} to={1.06} origin="55% 45%" style={{ clipPath: `inset(0 ${100 - wipe}% 0 0)` }} />
-        <div style={{ position: "absolute", top: 0, bottom: 0, left: `${wipe}%`, width: 3, background: C.tealBright, opacity: wipe > 0 && wipe < 100 ? 1 : 0, boxShadow: `0 0 18px ${C.tealBright}` }} />
-      </AbsoluteFill>
-      <AbsoluteFill style={{ opacity: satIn, background: "linear-gradient(0deg, rgba(11,21,48,0.85) 0%, rgba(11,21,48,0) 45%), linear-gradient(180deg, rgba(11,21,48,0.75) 0%, rgba(11,21,48,0) 22%)" }} />
-      <div style={{ position: "absolute", left: 64, top: 52, fontFamily: MONO, fontSize: 24, color: C.paper, letterSpacing: 2, opacity: satIn }}>
-        <div>AYUTTHAYA, THAILAND · NASA EO-1</div>
-        <div style={{ position: "relative", height: 34, marginTop: 8 }}>
-          <span style={{ position: "absolute", left: 0, top: 0, color: C.tealBright, opacity: labelBefore }}>BEFORE THE FLOOD</span>
-          <span style={{ position: "absolute", left: 0, top: 0, color: C.amber, opacity: labelAfter }}>23 OCT 2011 — FLOODED</span>
-        </div>
-      </div>
-      <div style={{ position: "absolute", left: 120, bottom: 150 }}>
-        <Rise delay={s(2.75)}>
-          <div style={{ fontFamily: SANS, fontWeight: 500, fontSize: 40, color: C.paper }}>Hard-drive prices, worldwide</div>
-        </Rise>
-        <Rise delay={s(3.05)}>
-          <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 150, color: C.amber, lineHeight: 1 }}>↑ 30%+</div>
-        </Rise>
-      </div>
-      <Credit text="NASA EO-1 & Blue Marble (public domain) · Provinces: geoBoundaries CC BY 4.0 · Prices: IHS iSuppli" />
     </AbsoluteFill>
   );
 };

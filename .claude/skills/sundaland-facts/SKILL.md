@@ -1,14 +1,17 @@
 ---
 name: sundaland-facts
-description: Produce a long-form (8–10 min, 16:9) "N Facts About <Country/Place> That Sound Fake" video for The Sundaland channel (Economy Geography) — countdown documentary with Malacca-style satellite map animation, real footage/photos, Google TTS only. Use when the user types /sundaland-facts <topic> or asks for "another clip in the Thailand-facts format".
+description: Produce a long-form (8–10 min, 16:9) "N Facts About <Country/Place/Topic> That Sound Fake" countdown video for The Sundaland channel (Economy Geography) — satellite-map animation, real footage/photos, Google TTS only; format spec in FORMAT.md, code in template/. Use when the user types /sundaland-facts <topic> or asks for another clip in the channel's facts format.
 ---
 
 # /sundaland-facts — The Sundaland countdown format
 
-Reference production: `projects/thailand-sounds-fake/` ("20 Facts About Thailand That Sound Fake (But Aren't)", 9:02, approved v3).
-**Reuse its code and pipeline; only the topic, facts, assets and map coordinates change.**
-If that project folder is gone (`projects/` is gitignored), start from the snapshot in this skill's `template/`
-(all `.tsx`, builders, `stills.mjs`/`thumbs.mjs`, narration + globe scripts, SFX wavs, cropped logos).
+**The format is defined in this skill, not in any past project:**
+- [`FORMAT.md`](FORMAT.md) — the full look/structure/sound spec (identity, palette, shot grammar, map language,
+  signature sequences, end card, thumbnail). Read it before the proposal.
+- `template/` — the working code: all `.tsx`, builders, `stills.mjs`/`thumbs.mjs`, narration + globe scripts,
+  SFX wavs, logos (`template/public/`), projection + globe textures (`template/assets/`).
+**Reuse the template; only the topic, facts, assets and map coordinates change.** Past projects under `projects/`
+(gitignored, may be absent) are optional extra reference only — never required, never cited as the source of truth.
 New project: `python -c "from lib.checkpoint import init_project; init_project('<slug>', title='<Title>', pipeline_type='animated-explainer')"`,
 copy `template/*` into `projects/<slug>/`, put logos/SFX into `public/`, then regenerate `mapData.ts`, basemaps and `timeline.ts` for the new country.
 
@@ -22,16 +25,17 @@ Usage: `/sundaland-facts <topic> [count=20] [minutes=8-10]` — e.g. `/sundaland
 - **Channel:** The Sundaland · tagline under the logo **ECONOMY GEOGRAPHY** · outro line "That's the geography behind the economy. This is The Sundaland."
 - **Lens:** trade · geography · economy. **No unresolved/ongoing disputes (borders, territory), no domestic politics, no drug-trade angles.**
 - **Cost policy:** Google credentials are for **TTS only** (Chirp3-HD). **Do NOT call Veo, Imagen, Lyria, Gemini TTS** (they bill the same Google account). Everything else must be free: Pixabay video/music (key in `.env`), Wikimedia Commons, NASA GIBS, geoBoundaries, Natural Earth. Pexels is unavailable.
-- **Pipeline:** `animated-explainer`, **Remotion atelier**, renderer_family documentary-montage. HyperFrames is broken on this machine — say so once, log it, don't ask.
+- **Pipeline:** `animated-explainer`, **Remotion atelier**, renderer_family documentary-montage. The template is Remotion, so Remotion is the format runtime. Check preflight once: if HyperFrames is available, mention it in one line with the recommendation to stay on Remotion (rebuilding the look in HTML is not worth it) and log both in `render_runtime_selection`; if unavailable, say so and log it. Don't turn it into a separate question.
 - **Approval gates (stop and wait each time):** proposal/plan → script → scene plan → assets (stills contact sheet) → full render review → thumbnail pick → publish pack. Skip the 15-s sample unless the user asks — the look is already approved (reuse it).
-- **Disk is tight (~7–9 GB free).** Check `df -h` before renders; delete raw renders after loudnorm; offer to delete old versions; never sweep `$TMPDIR` yourself (user runs `rm -rf "$TMPDIR"/remotion-webpack-bundle-*`).
+- **Disk:** check free space before renders (`df -h` on macOS/Linux, `Get-PSDrive` on Windows); a full render needs ~5–10 GB headroom. Delete raw renders after loudnorm; offer to delete old versions; never sweep the temp dir yourself — tell the user to clear `remotion-webpack-bundle-*` from it.
+- **Windows:** activate `.venv` (`.\.venv\Scripts\Activate.ps1`) so `piper`/`ffmpeg` resolve; scripts copied from the template may contain macOS paths — fix them to project-relative paths when copying.
 
 ## 1. Research & script (fast)
 
 1. 2–4 parallel `WebSearch` batches to verify every fact; prefer primary/major sources (government stats, Bangkok Post-tier press, research houses, USDA/OEC/IOTC, Wikipedia for geography). Hedge where sources disagree ("about", "has ranked", "among the top two") and drop claims that can't be verified.
 2. Pick **N facts** in 3 acts: **The Land → The Water → The Money**, finale **#1 tied to Sundaland/the region** when possible. Each fact: `Number N. <Title>.` + setup ("you'd assume…") + the number + twist + why it matters for trade/economy.
 3. Length: ~1,250–1,300 words ≈ 8.3 min speech at **166 wpm** (measured for Chirp3-HD *Orus* @0.98) → ~9 min with title beats/sting/end card.
-4. Build `artifacts/script.json` with the same builder pattern (`projects/thailand-sounds-fake/artifacts/_build_script.py`): voice_performance, delivery_cues, pronunciation guides, enhancement cues. Write `script_locked.md` for the user.
+4. Build `artifacts/script.json` with the same builder pattern (`template/artifacts/_build_script.py`): voice_performance, delivery_cues, pronunciation guides, enhancement cues. Write `script_locked.md` for the user.
 
 ## 2. Scene plan
 
@@ -47,15 +51,14 @@ Copy the shot grammar from `artifacts/_build_scene_plan.py` / `_build_timeline.p
 | Narration | `google_tts` voice `en-US-Chirp3-HD-Orus`, rate 0.98, **per sentence**, silences inserted (0.25 s after "Number N.", 0.7 s after title, 0.3 s between) — `assets/narration/make_narration.py`. Verify names with whisper. |
 | Footage | Pixabay API search → contact sheets → pick → download, trim to ≤12 s, 1080p, `-an` (see footage step in the reference session). |
 | Real photos of specific places | Wikimedia Commons API; accept only CC BY / BY-SA / CC0 / PD / FAL; record artist+license+page; **rate-limited → sequential with backoff**, verify JPEG (not HTML). |
-| Music | **Prefer tracks the user drops into `music_library/` from YouTube Audio Library (Content-ID safe).** Pixabay Music is a fallback only: on the Thailand video two Pixabay tracks got Content ID claims on upload ("Documentary Ambient"/AvelineMusic → claimed as "Quiet Field Notes"/MarloweMusic via Elite Alliance Music; "Emotional Cinematic"/NastelBom → "Epic Emotional Cinematic"). Never reuse those two. One track per act, loudnorm each to −18 LUFS. |
+| Music | Tracks the user drops into `music_library/` (YouTube Audio Library) are safest. **Pixabay Music is allowed but every track must pass the Content ID screen:** (1) the track's Pixabay page must not carry a Content ID / registered flag; (2) search the exact title + artist on YouTube Music/Spotify/Apple — if it is distributed to streaming (DistroKid, Elite Alliance, etc.) or exists under another name, reject it; (3) reject artists with known claims — AvelineMusic ("Documentary Ambient" → claimed as "Quiet Field Notes"/MarloweMusic via Elite Alliance Music) and NastelBom ("Emotional Cinematic" → "Epic Emotional Cinematic"); (4) prefer artists whose profile says no Content ID; (5) record the screen result per track in `assets/music_provenance.json`; (6) the user uploads **Private** first so YouTube's pre-publish copyright check runs, and keeps the Pixabay licence certificate (needs their login) for disputes. No screen can guarantee zero claims — say so. One track per act, loudnorm each to −18 LUFS. |
 | SFX | Synthesized with ffmpeg in `public/sfx/` (whoosh, pop, tick, impact, click, bell) — copy them. |
 | Basemaps | NASA GIBS WMS `BlueMarble_ShadedRelief_Bathymetry` at 3 levels (country / region / world `earth_8k.jpg`) aligned to the project projection (`assets/brand/proj.json` pattern). |
 | Boundaries | geoBoundaries ADM0 + ADM1 (CC BY 4.0), Natural Earth 50m countries + 10m rivers (PD) → `mapData.ts`. |
 | Globe | `assets/globe/render_globe.py in 48` and `out <frames>` (clouds: Solar System Scope CC BY 4.0) — change the target country/route. |
 
-## 4. The look — MUST match the user's Malacca piece
+## 4. The look — summary (full spec in [`FORMAT.md`](FORMAT.md))
 
-(`/Users/nack/MyProjects/studio/content/2026-11-05_malacca-om/renders/final.en-US.9x16.mp4`)
 - **Cold open:** real aerial footage → whip-blur into **spinning cloudy globe** → zoom → seamless hand-off to flat satellite map → **flag-filled country silhouette pops** → zoom to the hook location → dashed line **ticks white with ray burst** → big amber number.
 - **Logo sting** after the tease: white mark rotates in, wordmark wipes, ECONOMY GEOGRAPHY.
 - **Map language:** satellite basemap, whip-zoom motion blur, bold-italic white labels with leader lines, provinces pop in solid colour (**amber = subject, teal = context**), **red pin ticks** with ray burst, territory tint + white border so borders read on satellite.
@@ -66,7 +69,7 @@ Copy the shot grammar from `artifacts/_build_scene_plan.py` / `_build_timeline.p
 - **Outro:** pull back to the cloudy globe with the route drawn on it → **white pill logo "The Sundaland" types in** at "This is The Sundaland" → **end card 8 s**: big logo + tagline, channel card, **cursor clicks SUBSCRIBE → ✓ SUBSCRIBED → clicks bell (rings, red dot)** with click/bell SFX, dashed **WATCH NEXT** slot for YouTube end-screen.
 - Watermark: white logo bottom-right (hidden during sting/end card). Palette: ink #0B1530, navy #1F2A6B → teal #21807F, paper #F2EFE6, amber #E9A23B. Fonts: Fraunces 600 / Manrope / IBM Plex Mono.
 
-**Code to reuse (copy the project folder, then edit data):** `parts.tsx` (atoms, Basemap, FlagSilhouette, MapLabel, PinTick, DashLine, ColdOpen, Sting, FactTitle), `scenes.tsx` (MapScene data-driven, Footage/Photo/Title scenes, EndCard), `fx.tsx` (Ship3D oblique, followCam, RouteFX, FlowArc + icons, CountryPop, IconBurst, CountUp, viz scenes, GlobeOutro), `Thumb.tsx`, `artifacts/_build_timeline.py` (timeline from real narration timing; scene specs per section), `artifacts/stills.mjs` (one bundle → many stills). Stage with `VideoCompose()._stage_atelier_project(...)`, render with `artifacts/_render_final.py`.
+**Code to reuse (copy `template/`, then edit data):** `parts.tsx` (atoms, Basemap, FlagSilhouette, MapLabel, PinTick, DashLine, ColdOpen, Sting, FactTitle), `scenes.tsx` (MapScene data-driven, Footage/Photo/Title scenes, EndCard), `fx.tsx` (Ship3D oblique, followCam, RouteFX, FlowArc + icons, CountryPop, IconBurst, CountUp, viz scenes, GlobeOutro), `Thumb.tsx`, `artifacts/_build_timeline.py` (timeline from real narration timing; scene specs per section), `artifacts/stills.mjs` (one bundle → many stills). Stage with `VideoCompose()._stage_atelier_project(...)`, render with `artifacts/_render_final.py`.
 
 ## 5. Review loop (before asking the user)
 

@@ -8,11 +8,12 @@ import fs from "node:fs";
 const [entry, publicDir, outDir, scale, framesCsv] = process.argv.slice(2);
 fs.mkdirSync(outDir, { recursive: true });
 const serveUrl = await bundle({ entryPoint: path.resolve(entry), publicDir: path.resolve(publicDir) });
-const comp = await selectComposition({ serveUrl, id: "ThailandFacts", inputProps: {} });
+const chromiumOptions = { gl: "angle" };
+const comp = await selectComposition({ serveUrl, id: "SEABrokeFirst", inputProps: {}, chromiumOptions });
 const frames = framesCsv.split(",").map(Number);
 for (const frame of frames) {
   const output = path.join(outDir, `f${String(frame).padStart(5, "0")}.jpg`);
-  await renderStill({ composition: comp, serveUrl, output, frame, scale: Number(scale), imageFormat: "jpeg", jpegQuality: 80, inputProps: {} });
+  await renderStill({ composition: comp, serveUrl, output, frame, scale: Number(scale), imageFormat: "jpeg", jpegQuality: 80, inputProps: {}, chromiumOptions });
   process.stdout.write(`.${frame}`);
 }
 fs.rmSync(serveUrl, { recursive: true, force: true });
