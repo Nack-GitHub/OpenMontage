@@ -17,7 +17,7 @@ wins when they disagree.
 | Lens | trade · geography · economy — "the geography behind the economy" |
 | Outro line (spoken) | "That's the geography behind the economy. This is The Sundaland." |
 | Off-limits | unresolved/ongoing disputes (borders, territory), domestic politics, drug-trade angles |
-| Narration | English, `en-US-Chirp3-HD-Orus`, rate 0.98 (≈166 wpm measured) |
+| Narration | English, ElevenLabs voice **Brian** (`nPczCjzI2devNBz1zQrb`), `eleven_multilingual_v2`, speed 1.0 (~160 wpm, re-measure at sample) |
 | Long-form | 16:9 · 1920×1080 · 30 fps · 8–10 min |
 | Short | 9:16 · 1080×1920 · 30 fps · ~60 s (map language identical; adds word-highlight captions) |
 

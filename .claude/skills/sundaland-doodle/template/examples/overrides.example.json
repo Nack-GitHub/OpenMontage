@@ -1,0 +1,52 @@
+[
+  {
+    "box": [
+      1700,
+      1820,
+      100,
+      190
+    ],
+    "owner": "sleep",
+    "note": "zzz"
+  },
+  {
+    "box": [
+      1680,
+      1735,
+      205,
+      265
+    ],
+    "owner": "sleep",
+    "note": "sleeper eyes + mouth"
+  },
+  {
+    "box": [
+      700,
+      730,
+      100,
+      130
+    ],
+    "owner": "sweep",
+    "note": "sweeper eye"
+  },
+  {
+    "box": [
+      635,
+      675,
+      265,
+      300
+    ],
+    "owner": "sweep",
+    "note": "broom dust"
+  },
+  {
+    "box": [
+      960,
+      1030,
+      40,
+      110
+    ],
+    "owner": "shock",
+    "note": "left surprise sparks"
+  }
+]

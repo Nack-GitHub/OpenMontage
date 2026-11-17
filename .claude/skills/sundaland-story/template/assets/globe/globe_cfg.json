@@ -1,0 +1,4 @@
+{
+ "in":  {"end_lon": 102.0, "end_lat": 6.6, "end_vh_deg": 14, "outline": []},
+ "out": {"end_lon": 102.0, "end_lat": 6.0, "end_vh_deg": 30, "outline": [], "center": [110, 8], "route": []}
+}

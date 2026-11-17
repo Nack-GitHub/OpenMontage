@@ -1,0 +1,7 @@
+[
+  {"name": "b1_hi",    "src": "dab",   "start": 50,  "end": 125, "src_fps": 30,  "caption": "Hi from The Sundaland!"},
+  {"name": "b2_jump",  "src": "jump",  "start": 140, "end": 310, "src_fps": 120, "slow": 1.15, "caption": "Ships are coming in!"},
+  {"name": "b3_jacks", "src": "jacks", "start": 10,  "end": 100, "src_fps": 30,  "caption": "warm-up before the cargo..."},
+  {"name": "b4_dance", "src": "dance", "start": 100, "end": 450, "src_fps": 100, "caption": "party at the port!"},
+  {"name": "b5_cheer", "src": "dab",   "start": 230, "end": 339, "src_fps": 30,  "hold": 0.6, "caption": ""}
+]

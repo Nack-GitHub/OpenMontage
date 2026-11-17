@@ -3,7 +3,7 @@ import json, re
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-WPM = 166            # measured: Chirp3-HD Orus @ 0.98 → 166–170 wpm on the sample
+WPM = 160            # estimate: ElevenLabs Brian @ speed 1.0 — re-measure on the approved sample
 TITLE_PAUSE = 0.7    # beat after each "Number N — title"
 SECTION_GAP = 0.5
 
@@ -182,9 +182,9 @@ script = {
    "performance_intent": "Calm, curious documentary narrator who enjoys the twist; credible, never hype.",
    "pacing_profile": "conversational",
    "energy_curve": "Measured hook → warmer act 1 → steady, explanatory act 2 → building confidence in act 3 → slow, awed #1 → warm sign-off.",
-   "pause_policy": "Numbered titles get a 0.7 s beat; 0.6 s after each fact's payoff number; 1.0 s before and after #1. Pauses are produced by splitting narration into per-sentence clips and inserting silence (Chirp3-HD voices ignore SSML breaks).",
+   "pause_policy": "Numbered titles get a 0.7 s beat; 0.6 s after each fact's payoff number; 1.0 s before and after #1. Pauses are produced by splitting narration into per-sentence clips and inserting silence (more reliable than SSML breaks).",
    "sample_section_id": "f09",
-   "provider_notes": {"google_tts": "voice en-US-Chirp3-HD-Orus, speaking_rate 0.98 (approved in sample v4); plain text per sentence, silence inserted in edit"}},
+   "provider_notes": {"elevenlabs_tts": "voice Brian nPczCjzI2devNBz1zQrb, model eleven_multilingual_v2, speed 1.0, stability 0.5, similarity 0.75; plain text per sentence with previous_text/next_text context, silence inserted in edit"}},
  "sections": sections,
  "metadata": {"words": total_words, "wpm_assumed": WPM, "sting_after": "s01", "target_minutes": [8, 10],
               "verify_resolved": {"bangkok_piles": "most buildings on piles 20–50 m to reach sand (geotech literature)",

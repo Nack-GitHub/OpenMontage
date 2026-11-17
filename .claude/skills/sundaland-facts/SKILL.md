@@ -1,6 +1,6 @@
 ---
 name: sundaland-facts
-description: Produce a long-form (8–10 min, 16:9) "N Facts About <Country/Place/Topic> That Sound Fake" countdown video for The Sundaland channel (Economy Geography) — satellite-map animation, real footage/photos, Google TTS only; format spec in FORMAT.md, code in template/. Use when the user types /sundaland-facts <topic> or asks for another clip in the channel's facts format.
+description: Produce a long-form (8–10 min, 16:9) "N Facts About <Country/Place/Topic> That Sound Fake" countdown video for The Sundaland channel (Economy Geography) — satellite-map animation, real footage/photos, ElevenLabs TTS (voice Brian); format spec in FORMAT.md, code in template/. Use when the user types /sundaland-facts <topic> or asks for another clip in the channel's facts format.
 ---
 
 # /sundaland-facts — The Sundaland countdown format
@@ -24,7 +24,7 @@ Usage: `/sundaland-facts <topic> [count=20] [minutes=8-10]` — e.g. `/sundaland
 - **Reply to the user in Thai.** Narration language: **English** (ask only if the topic is Thai-domestic).
 - **Channel:** The Sundaland · tagline under the logo **ECONOMY GEOGRAPHY** · outro line "That's the geography behind the economy. This is The Sundaland."
 - **Lens:** trade · geography · economy. **No unresolved/ongoing disputes (borders, territory), no domestic politics, no drug-trade angles.**
-- **Cost policy:** Google credentials are for **TTS only** (Chirp3-HD). **Do NOT call Veo, Imagen, Lyria, Gemini TTS** (they bill the same Google account). Everything else must be free: Pixabay video/music (key in `.env`), Wikimedia Commons, NASA GIBS, geoBoundaries, Natural Earth. Pexels is unavailable.
+- **Cost policy:** the only paid service is **narration TTS = ElevenLabs `elevenlabs_tts`, voice Brian (`nPczCjzI2devNBz1zQrb`), model `eleven_multilingual_v2`** (key `ELEVENLABS_API_KEY` in `.env`; the key is scoped to text-to-speech only, so `/v1/voices` and `/v1/models` return 401 — that is expected, not a broken key). Use no other ElevenLabs product (music, SFX, soundtrack) without asking. Google TTS Chirp3-HD *Orus* @0.98 is the **fallback only** if ElevenLabs fails or runs out of quota — say so before switching. **Do NOT call Veo, Imagen, Lyria, Gemini TTS** (they bill the Google account). Everything else must be free: Pixabay video/music (key in `.env`), Wikimedia Commons, NASA GIBS, geoBoundaries, Natural Earth. Pexels is unavailable.
 - **Pipeline:** `animated-explainer`, **Remotion atelier**, renderer_family documentary-montage. The template is Remotion, so Remotion is the format runtime. Check preflight once: if HyperFrames is available, mention it in one line with the recommendation to stay on Remotion (rebuilding the look in HTML is not worth it) and log both in `render_runtime_selection`; if unavailable, say so and log it. Don't turn it into a separate question.
 - **Approval gates (stop and wait each time):** proposal/plan → script → scene plan → assets (stills contact sheet) → full render review → thumbnail pick → publish pack. Skip the 15-s sample unless the user asks — the look is already approved (reuse it).
 - **Disk:** check free space before renders (`df -h` on macOS/Linux, `Get-PSDrive` on Windows); a full render needs ~5–10 GB headroom. Delete raw renders after loudnorm; offer to delete old versions; never sweep the temp dir yourself — tell the user to clear `remotion-webpack-bundle-*` from it.
@@ -34,7 +34,7 @@ Usage: `/sundaland-facts <topic> [count=20] [minutes=8-10]` — e.g. `/sundaland
 
 1. 2–4 parallel `WebSearch` batches to verify every fact; prefer primary/major sources (government stats, Bangkok Post-tier press, research houses, USDA/OEC/IOTC, Wikipedia for geography). Hedge where sources disagree ("about", "has ranked", "among the top two") and drop claims that can't be verified.
 2. Pick **N facts** in 3 acts: **The Land → The Water → The Money**, finale **#1 tied to Sundaland/the region** when possible. Each fact: `Number N. <Title>.` + setup ("you'd assume…") + the number + twist + why it matters for trade/economy.
-3. Length: ~1,250–1,300 words ≈ 8.3 min speech at **166 wpm** (measured for Chirp3-HD *Orus* @0.98) → ~9 min with title beats/sting/end card.
+3. Length: ~1,250–1,300 words ≈ 8.3 min speech at **~160 wpm** (estimate for ElevenLabs Brian @ speed 1.0 — re-measure on the approved sample and update `WPM` in `_build_script.py`) → ~9 min with title beats/sting/end card.
 4. Build `artifacts/script.json` with the same builder pattern (`template/artifacts/_build_script.py`): voice_performance, delivery_cues, pronunciation guides, enhancement cues. Write `script_locked.md` for the user.
 
 ## 2. Scene plan
@@ -48,7 +48,7 @@ Copy the shot grammar from `artifacts/_build_scene_plan.py` / `_build_timeline.p
 
 | Need | How |
 |---|---|
-| Narration | `google_tts` voice `en-US-Chirp3-HD-Orus`, rate 0.98, **per sentence**, silences inserted (0.25 s after "Number N.", 0.7 s after title, 0.3 s between) — `assets/narration/make_narration.py`. Verify names with whisper. |
+| Narration | ElevenLabs `elevenlabs_tts`, voice **Brian** (`nPczCjzI2devNBz1zQrb`), model `eleven_multilingual_v2`, stability 0.5, similarity 0.75, style 0, speed 1.0, fixed `seed` per section, `previous_text`/`next_text` set to the neighbouring sentences so prosody flows; **per sentence**, silences inserted (0.25 s after "Number N.", 0.7 s after title, 0.3 s between) — `assets/narration/make_narration.py`. Verify names with whisper. |
 | Footage | Pixabay API search → contact sheets → pick → download, trim to ≤12 s, 1080p, `-an` (see footage step in the reference session). |
 | Real photos of specific places | Wikimedia Commons API; accept only CC BY / BY-SA / CC0 / PD / FAL; record artist+license+page; **rate-limited → sequential with backoff**, verify JPEG (not HTML). |
 | Music | Tracks the user drops into `music_library/` (YouTube Audio Library) are safest. **Pixabay Music is allowed but every track must pass the Content ID screen:** (1) the track's Pixabay page must not carry a Content ID / registered flag; (2) search the exact title + artist on YouTube Music/Spotify/Apple — if it is distributed to streaming (DistroKid, Elite Alliance, etc.) or exists under another name, reject it; (3) reject artists with known claims — AvelineMusic ("Documentary Ambient" → claimed as "Quiet Field Notes"/MarloweMusic via Elite Alliance Music) and NastelBom ("Emotional Cinematic" → "Epic Emotional Cinematic"); (4) prefer artists whose profile says no Content ID; (5) record the screen result per track in `assets/music_provenance.json`; (6) the user uploads **Private** first so YouTube's pre-publish copyright check runs, and keeps the Pixabay licence certificate (needs their login) for disputes. No screen can guarantee zero claims — say so. One track per act, loudnorm each to −18 LUFS. |

@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script src="ink-theater.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      @font-face { font-family: "InkHand"; src: url("assets/patrickhand.ttf") format("truetype"); font-display: block; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #ffffff; }
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #ffffff; }
+      #world { position: absolute; inset: 0; filter: url(#boilR); }
+      .actor { position: absolute; }
+      .pose, .idle { position: absolute; inset: 0; transform-origin: 50% 100%; }
+      .idle img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+      .shadow { position: absolute; left: 18%; width: 64%; bottom: -12px; height: 24px; border-radius: 50%;
+                background: radial-gradient(ellipse at center, rgba(0,0,0,0.13) 0%, rgba(0,0,0,0) 70%); opacity: 0; }
+      .drop { position: absolute; width: 5px; height: 26px; border-radius: 3px; background: #6aa6dc; opacity: 0; }
+      .cap { position: absolute; left: 0; top: 70px; width: 1920px; text-align: center; font-family: "InkHand", cursive;
+             font-size: 76px; color: #2a2a2a; opacity: 0; }
+      .signtext { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center;
+                  font-family: "InkHand", cursive; color: #1a1a1a; text-align: center; line-height: 0.95; opacity: 0; }
+      #flash { position: absolute; inset: 0; background: #fff; opacity: 0; }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position:absolute">
+      <filter id="boilR" x="-5%" y="-5%" width="110%" height="110%">
+        <feTurbulence id="boilTurb" type="fractalNoise" baseFrequency="0.018" numOctaves="1" seed="1" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="2.6"/>
+      </filter>
+    </svg>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="16.5" data-width="1920" data-height="1080">
+      <div id="world"></div>
+      <div id="flash"></div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      if (document.fonts && document.fonts.load) { document.fonts.load("80px InkHand"); }
+      var tl = gsap.timeline({ paused: true });
+      var E = InkTheater.ease, world = document.getElementById("world"), root = document.getElementById("root");
+      var GROUND = 930;
+      var SIZE = { coffee: [406, 546], run: [464, 482], read: [314, 552], sweep: [340, 558], laptop: [404, 506], shock: [336, 610],
+                   dance: [346, 584], camera: [456, 600], umbrella: [440, 634], sleep: [444, 420], sign: [360, 626] };
+
+      // actor = travel layer > shadow + pose layer (pop / swap / squash) > idle layer (breathe / bob / tilt) > sprite
+      function actor(name, cx, k) {
+        var w = SIZE[name][0] * k, h = SIZE[name][1] * k;
+        var a = document.createElement("div"); a.className = "actor";
+        a.style.cssText = "left:" + (cx - w / 2) + "px;top:" + (GROUND - h) + "px;width:" + w + "px;height:" + h + "px";
+        var sh = document.createElement("div"); sh.className = "shadow";
+        var pose = document.createElement("div"); pose.className = "pose";
+        var idle = document.createElement("div"); idle.className = "idle";
+        var img = document.createElement("img"); img.src = "assets/poses/" + name + ".png"; img.alt = name;
+        idle.appendChild(img); pose.appendChild(idle); a.appendChild(sh); a.appendChild(pose); world.appendChild(a);
+        gsap.set(pose, { scale: 0, opacity: 0 });
+        return { el: a, pose: pose, idle: idle, shadow: sh, k: k, w: w, h: h };
+      }
+      function popIn(A, t) {
+        tl.fromTo(A.pose, { scale: 0, opacity: 1 }, { scale: 1, duration: 0.42, ease: E.overshoot, immediateRender: false }, t);
+        tl.fromTo(A.shadow, { opacity: 0 }, { opacity: 1, duration: 0.3, immediateRender: false }, t + 0.1);
+      }
+      function popOut(A, t) {
+        tl.fromTo(A.pose, { scale: 1 }, { scale: 0, duration: 0.16, ease: "power2.in", immediateRender: false }, t);
+        tl.set(A.pose, { opacity: 0 }, t + 0.16);
+        tl.to(A.shadow, { opacity: 0, duration: 0.12 }, t);
+      }
+      function swap(A, B, t) { popOut(A, t); popIn(B, t + 0.1); }
+      function breathe(A, t0, t1) {
+        var n = Math.max(1, Math.floor((t1 - t0) / 0.9));
+        tl.fromTo(A.idle, { scaleY: 1, scaleX: 1 }, { scaleY: 1.025, scaleX: 0.99, duration: 0.45, ease: "sine.inOut", yoyo: true, repeat: n * 2 - 1, immediateRender: false }, t0);
+      }
+      var CAP = null;
+      function caption(text, t0, t1) {
+        var d = document.createElement("div"); d.className = "cap"; d.textContent = text; root.appendChild(d);
+        tl.fromTo(d, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" }, t0);
+        tl.to(d, { opacity: 0, duration: 0.25 }, t1);
+      }
+
+      // ---------- beat 1: coffee → laptop → shock ----------
+      var coffee = actor("coffee", 960, 0.95), laptop = actor("laptop", 960, 0.95), shock = actor("shock", 960, 0.95);
+      caption("8:00 — coffee first", 0.2, 2.3);
+      popIn(coffee, 0.3); breathe(coffee, 0.8, 2.5);
+      caption("9:00 — checking trade data", 2.6, 4.3);
+      swap(coffee, laptop, 2.5);
+      tl.fromTo(laptop.idle, { y: 0 }, { y: -4, duration: 0.09, ease: "steps(1)", yoyo: true, repeat: 17, immediateRender: false }, 2.8);
+      caption("9:01 — wait, WHAT?!", 4.5, 6.1);
+      swap(laptop, shock, 4.4);
+      tl.fromTo(world, { x: 0 }, { x: 12, duration: 0.04, ease: "none", yoyo: true, repeat: 9, immediateRender: false }, 4.6);
+      tl.set(world, { x: 0 }, 5.0);
+      tl.fromTo(shock.idle, { scale: 1 }, { scale: 1.06, duration: 0.18, ease: "sine.inOut", yoyo: true, repeat: 5, immediateRender: false }, 4.7);
+      popOut(shock, 6.1);
+
+      // ---------- beat 2: late for the port — sprint across ----------
+      var run = actor("run", 960, 0.9);
+      caption("late for the port!", 6.2, 8.3);
+      tl.set(run.pose, { scale: 1, opacity: 1 }, 6.3);
+      tl.set(run.shadow, { opacity: 1 }, 6.3);
+      tl.fromTo(run.el, { x: -1250 }, { x: 1250, duration: 2.0, ease: "none", immediateRender: false }, 6.3);
+      tl.fromTo(run.idle, { y: 0 }, { y: -30, duration: 0.13, ease: "power1.out", yoyo: true, repeat: 15, immediateRender: false }, 6.3);
+      tl.set(run.pose, { opacity: 0 }, 8.35);
+
+      // ---------- beat 3: monsoon walk ----------
+      var umb = actor("umbrella", 960, 0.95);
+      caption("monsoon season", 8.5, 11.4);
+      var rnd = InkTheater.rng(42);
+      for (var i = 0; i < 48; i++) {
+        var d = document.createElement("div"); d.className = "drop";
+        d.style.left = (rnd() * 1960 - 20).toFixed(0) + "px"; d.style.transform = "rotate(12deg)"; world.appendChild(d);
+        var fall = 0.55 + rnd() * 0.35, start = 8.4 + rnd() * 0.6, reps = Math.floor((12.3 - start) / fall) - 1;
+        tl.set(d, { opacity: 0.55 + rnd() * 0.35 }, start);
+        tl.fromTo(d, { y: -60, x: 0 }, { y: 1140, x: -230, duration: fall, ease: "none", repeat: reps, immediateRender: false }, start);
+        tl.set(d, { opacity: 0 }, start + fall * (reps + 1));
+      }
+      tl.set(umb.pose, { scale: 1, opacity: 1 }, 8.6);
+      tl.set(umb.shadow, { opacity: 1 }, 8.6);
+      tl.fromTo(umb.el, { x: -1250 }, { x: 0, duration: 2.2, ease: "power1.out", immediateRender: false }, 8.6);
+      tl.fromTo(umb.idle, { y: 0, rotation: -2 }, { y: -12, rotation: 2, duration: 0.27, ease: "sine.inOut", yoyo: true, repeat: 7, immediateRender: false }, 8.6);
+      breathe(umb, 10.9, 11.6);
+      popOut(umb, 11.6);
+
+      // ---------- beat 4: dance ----------
+      var dance = actor("dance", 960, 0.95);
+      caption("...and we still love it", 11.85, 13.3);
+      popIn(dance, 11.8);
+      tl.fromTo(dance.idle, { y: 0 }, { y: -26, duration: 0.17, ease: "power1.out", yoyo: true, repeat: 7, immediateRender: false }, 12.2);
+      tl.fromTo(dance.idle, { rotation: -6 }, { rotation: 6, duration: 0.34, ease: "sine.inOut", yoyo: true, repeat: 3, immediateRender: false }, 12.2);
+      popOut(dance, 13.45);
+
+      // ---------- finale: the crew + the sign ----------
+      var crew = [actor("read", 330, 0.72), actor("coffee", 660, 0.72), actor("sign", 960, 0.9), actor("camera", 1290, 0.72), actor("sweep", 1600, 0.72)];
+      var order = [2, 1, 3, 0, 4];
+      order.forEach(function (ix, j) { popIn(crew[ix], 13.55 + j * 0.12); breathe(crew[ix], 14.3 + j * 0.05, 16.4); });
+      var sign = crew[2], st = document.createElement("div"); st.className = "signtext";
+      st.style.cssText += "left:" + (25 * sign.k) + "px;top:" + (30 * sign.k) + "px;width:" + (304 * sign.k) + "px;height:" + (183 * sign.k) + "px";
+      st.innerHTML = '<div style="font-size:' + (50 * sign.k) + 'px">THE</div><div style="font-size:' + (50 * sign.k) + 'px">SUNDALAND</div>';
+      sign.idle.appendChild(st);
+      tl.fromTo(st, { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.35, ease: E.overshoot }, 14.25);
+      tl.fromTo(sign.idle, { y: 0 }, { y: -14, duration: 0.2, ease: "power1.out", yoyo: true, repeat: 3, immediateRender: false }, 14.3);
+      tl.fromTo("#flash", { opacity: 0 }, { opacity: 0.85, duration: 0.06 }, 14.9);
+      tl.to("#flash", { opacity: 0, duration: 0.4 }, 14.96);
+
+      InkTheater.boil(document.getElementById("boilTurb"), tl, { duration: 16.5, fps: 8 });
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

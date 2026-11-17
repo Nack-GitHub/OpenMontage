@@ -1,4 +1,5 @@
-"""Per-sentence Google TTS (Chirp3-HD Orus @0.98, approved in sample) → per-section WAV with designed pauses.
+"""Per-sentence ElevenLabs TTS (voice Brian, eleven_multilingual_v2) → per-section WAV with designed pauses.
+Fallback: set PROVIDER = "google_tts" (Chirp3-HD Orus @0.98) only if ElevenLabs fails / quota runs out.
 Writes assets/narration/<section>.wav + narration_timing.json (sentence-level offsets for the edit)."""
 import json, re, subprocess, sys
 from concurrent.futures import ThreadPoolExecutor
@@ -12,7 +13,10 @@ HERE = Path(__file__).resolve().parent
 PROJ = HERE.parents[1]
 script = json.load(open(PROJ / "artifacts/script.json"))
 SENT = HERE / "sentences"; SENT.mkdir(exist_ok=True)
-VOICE, RATE = "en-US-Chirp3-HD-Orus", 0.98
+PROVIDER = "elevenlabs_tts"
+EL_VOICE, EL_MODEL = "nPczCjzI2devNBz1zQrb", "eleven_multilingual_v2"   # Brian
+EL_SETTINGS = {"stability": 0.5, "similarity_boost": 0.75, "style": 0.0, "speed": 1.0}
+VOICE, RATE = "en-US-Chirp3-HD-Orus", 0.98                              # google_tts fallback
 GAP_NUMBER, GAP_TITLE, GAP_SENT = 0.25, 0.70, 0.30
 REUSE = {  # identical text to the approved sample → reuse approved audio
     "s00": [PROJ / "public/sample/a_hook.mp3"],
@@ -23,19 +27,26 @@ def split(text):
     return [p for p in parts if p]
 
 registry.discover()
-tts = registry._tools["google_tts"]
+tts = registry._tools[PROVIDER]
 jobs = []
-for sec in script["sections"]:
+for n, sec in enumerate(script["sections"]):
     if sec["id"] in REUSE: continue
-    for i, s in enumerate(split(sec["text"])):
-        jobs.append((sec["id"], i, s))
+    ss = split(sec["text"])
+    for i, s in enumerate(ss):
+        jobs.append((sec["id"], i, s, " ".join(ss[:i])[-300:], " ".join(ss[i + 1:])[:300], 1000 + n))
 
 def run(job):
-    sid, i, text = job
+    sid, i, text, prev, nxt, seed = job
     out = SENT / f"{sid}_{i:02d}.mp3"
     if out.exists() and out.stat().st_size > 1000:
         return sid, i, True, 0.0, None
-    r = tts.execute({"text": text, "voice": VOICE, "speaking_rate": RATE, "output_path": str(out)})
+    if PROVIDER == "elevenlabs_tts":
+        args = {"text": text, "voice_id": EL_VOICE, "model_id": EL_MODEL, **EL_SETTINGS, "seed": seed, "output_path": str(out)}
+        if prev: args["previous_text"] = prev      # neighbouring sentences keep prosody continuous across clips
+        if nxt: args["next_text"] = nxt
+    else:
+        args = {"text": text, "voice": VOICE, "speaking_rate": RATE, "output_path": str(out)}
+    r = tts.execute(args)
     return sid, i, r.success, (r.cost_usd or 0.0), r.error
 
 cost = 0.0

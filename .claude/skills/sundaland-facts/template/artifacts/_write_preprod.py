@@ -90,9 +90,9 @@ decisions = {"version": "1.0", "project_id": PID, "decisions": [
      "selected": "pixabay+wikimedia+veo", "reason": "Accuracy + cost", "user_visible": True, "user_approved": True},
     {"decision_id": "d-006", "stage": "proposal", "category": "voice_selection", "subject": "Narration TTS provider",
      "options_considered": [
-         {"option_id": "google_tts_chirp3hd", "label": "Google TTS Chirp3-HD, English, male documentary", "score": 0.85, "reason": "Available, near-free, expressive"},
-         {"option_id": "gemini_tts", "label": "Gemini TTS", "score": 0.6, "reason": "Style control", "rejected_because": "Price needs quote; keep as alternative"}],
-     "selected": "google_tts_chirp3hd", "reason": "Default stated to user; voice confirmed at sample", "user_visible": True, "user_approved": True},
+         {"option_id": "elevenlabs_brian", "label": "ElevenLabs Brian (nPczCjzI2devNBz1zQrb), eleven_multilingual_v2, male documentary", "score": 0.9, "reason": "Channel voice chosen by the user"},
+         {"option_id": "google_tts_chirp3hd", "label": "Google TTS Chirp3-HD Orus", "score": 0.7, "reason": "Fallback", "rejected_because": "Fallback only if ElevenLabs fails or quota runs out"}],
+     "selected": "elevenlabs_brian", "reason": "Channel default voice; confirmed at sample", "user_visible": True, "user_approved": True},
     {"decision_id": "d-007", "stage": "proposal", "category": "music_source", "subject": "Music",
      "options_considered": [
          {"option_id": "pixabay_music", "label": "Pixabay Music (free)", "score": 0.8, "reason": "Free, no key"},
@@ -117,10 +117,10 @@ proposal_packet = {
     "production_plan": {
         "pipeline": PIPE, "playbook": "clean-professional",
         "stages": [
-            {"stage": "assets", "approach": "Stock B-roll from Pixabay; real-place photos from Wikimedia Commons (attributed); Veo only for non-photographable shots; Google TTS narration; Pixabay music",
+            {"stage": "assets", "approach": "Stock B-roll from Pixabay; real-place photos from Wikimedia Commons (attributed); Veo only for non-photographable shots; ElevenLabs narration (Brian); Pixabay music",
              "fallback_if_unavailable": "Imagen stills animated in Remotion for gaps (user approval required)",
              "tools": [
-                {"tool_name": "tts_selector", "role": "narration", "provider": "google_tts", "available": True, "estimated_cost_usd": 0.3},
+                {"tool_name": "elevenlabs_tts", "role": "narration", "provider": "elevenlabs", "available": True, "estimated_cost_usd": 2.5},
                 {"tool_name": "pixabay_video", "role": "stock b-roll", "provider": "pixabay", "available": True, "estimated_cost_usd": 0},
                 {"tool_name": "direct_clip_search", "role": "real-place photos (wikimedia)", "provider": "wikimedia", "available": True, "estimated_cost_usd": 0},
                 {"tool_name": "veo_video", "role": "non-photographable shots", "provider": "veo", "available": True, "estimated_cost_usd": 25.6},
@@ -134,13 +134,13 @@ proposal_packet = {
         "delivery_promise": {"promise_type": "hybrid", "motion_required": True, "source_required": False, "tone_mode": "educational", "quality_floor": "presentable",
                              "approved_fallback": "Animated real photos (Wikimedia) for specific real places only; 16:9 1920x1080, 8-10 min"},
         "music_source": {"source_type": "bring_your_own", "provider": "pixabay_music", "mood_direction": "calm documentary ambient, light pulse", "estimated_cost_usd": 0},
-        "voice_selection": {"provider": "google_tts", "voice_id": "en-US-Chirp3-HD (male, confirm at sample)", "rationale": "Available, near-free, natural", "estimated_cost_usd": 0.3,
+        "voice_selection": {"provider": "elevenlabs", "voice_id": "nPczCjzI2devNBz1zQrb", "rationale": "Channel voice Brian, eleven_multilingual_v2", "estimated_cost_usd": 2.5,
                             "delivery_style": "calm, curious documentary", "pacing_policy": "~150 wpm, beat pause before each reveal", "sample_approval_required": True},
         "decision_log_ref": "decision_log.json",
     },
     "cost_estimate": {"total_estimated_usd": 26.0, "budget_cap_usd": 30.0, "budget_verdict": "within_budget", "line_items": [
         {"tool": "veo_video", "operation": "8s clips", "quantity": 8, "estimated_usd": 25.6},
-        {"tool": "google_tts", "operation": "narration ~1,550 words", "quantity": 1, "estimated_usd": 0.3},
+        {"tool": "elevenlabs_tts", "operation": "narration ~1,300 words (~8,000 chars, counts against the ElevenLabs plan quota)", "quantity": 1, "estimated_usd": 2.5},
         {"tool": "pixabay_video / direct_clip_search / pixabay_music", "operation": "stock video, Wikimedia photos, music", "estimated_usd": 0.0}]},
     "approval": {"status": "approved_with_changes", "user_notes": "อย่าลืมใส่ logo ช่องไว้ด้วยนะครับ", "approved_budget_usd": 30.0},
 }
