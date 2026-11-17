@@ -5,6 +5,8 @@ description: Produce a long-form (8–10 min, 16:9) "N Facts About <Country/Plac
 
 # /sundaland-facts — The Sundaland countdown format
 
+> **Channel hub:** this is one format of The Sundaland. Channel-wide constants and the format registry/rotation live in [`../sundaland/`](../sundaland/SKILL.md) (`CHANNEL.md`, `FORMATS.md`). Pilot formats (`life`, `game`, `wild`) reuse this skill's production process via `/sundaland <format> <topic>`.
+
 **The format is defined in this skill, not in any past project:**
 - [`FORMAT.md`](FORMAT.md) — the full look/structure/sound spec (identity, palette, shot grammar, map language,
   signature sequences, end card, thumbnail). Read it before the proposal.

@@ -5,6 +5,8 @@ description: Make animated doodle-character scenes for The Sundaland channel —
 
 # /sundaland-doodle — Gemini doodles → animated scenes
 
+> **Channel hub:** this is one format of The Sundaland. Channel-wide constants and the format registry/rotation live in [`../sundaland/`](../sundaland/SKILL.md) (`CHANNEL.md`, `FORMATS.md`).
+
 **Everything needed is in this skill** — prompts in `prompts/`, scripts in `template/tools/`, scene templates in
 `template/scenes/`, worked examples in `template/examples/`. Past test projects under `projects/` (gitignored) are
 optional reference only. The user-facing Thai walkthrough is [`FLOW_TH.md`](FLOW_TH.md).

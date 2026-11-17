@@ -5,6 +5,8 @@ description: Produce a long-form (9–11 min, 16:9) narrative history episode fo
 
 # /sundaland-story — The Sundaland story format
 
+> **Channel hub:** this is one format of The Sundaland. Channel-wide constants and the format registry/rotation live in [`../sundaland/`](../sundaland/SKILL.md) (`CHANNEL.md`, `FORMATS.md`).
+
 **The format lives in this skill, not in any past project:**
 - [`FORMAT.md`](FORMAT.md) — topic rules, story structure, shot grammar, map additions, doodle modes, sound, thumbnail.
 - `template/` — working code (all `.tsx`, builders, doodle generator, narration, basemaps, globe, stills/thumbs,
